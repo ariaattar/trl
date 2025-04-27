@@ -187,6 +187,8 @@ class ScriptArguments:
         log_level (`str`, *optional*, defaults to `"info"`):
             Log level for uvicorn. Possible choices: `"critical"`, `"error"`, `"warning"`, `"info"`, `"debug"`,
             `"trace"`.
+        quantization (`str` or `None`, *optional*, defaults to `None`):
+            Quantization method to use. Currently supported: 'bitsandbytes'. If not specified, no quantization will be used.
     """
 
     model: str = field(
@@ -258,6 +260,12 @@ class ScriptArguments:
             "'trace'."
         },
     )
+    quantization: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Quantization method to use. Currently supported: 'bitsandbytes'. If not specified, no quantization will be used."
+        },
+    )
 
 
 def llm_worker(
@@ -269,6 +277,9 @@ def llm_worker(
     os.environ["VLLM_DP_SIZE"] = str(script_args.data_parallel_size)
     os.environ["VLLM_DP_MASTER_PORT"] = str(master_port)
 
+    # Prepare quantization parameter for vLLM
+    quantization = script_args.quantization
+    
     llm = LLM(
         model=script_args.model,
         revision=script_args.revision,
@@ -281,6 +292,7 @@ def llm_worker(
         # This is particularly useful here because we generate completions from the same prompts.
         enable_prefix_caching=script_args.enable_prefix_caching,
         max_model_len=script_args.max_model_len,
+        quantization=quantization,
         worker_extension_cls="trl.scripts.vllm_serve.WeightSyncWorkerExtension",
     )
 
